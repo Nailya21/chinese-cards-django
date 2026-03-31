@@ -1,0 +1,26 @@
+{% extends "cards/base.html" %}
+
+{% block title %}Тренировка{% endblock %}
+
+{% block content %}
+    <h1>Тренировка</h1>
+
+    {% if card %}
+        <div class="card-item">
+            <h2>{{ card.chinese }}</h2>
+            <p><strong>Пиньинь:</strong> {{ card.pinyin }}</p>
+            <p><strong>Подумай над переводом, а потом посмотри ответ ниже.</strong></p>
+
+            <hr style="margin: 20px 0;">
+
+            <p><strong>Перевод:</strong> {{ card.translation }}</p>
+            <p><strong>Пример:</strong> {{ card.example|default:"—" }}</p>
+            <p><strong>Тема:</strong> {{ card.topic|default:"—" }}</p>
+            <p><strong>HSK:</strong> {{ card.hsk_level }}</p>
+        </div>
+
+        <a class="btn" href="{% url 'cards:study' %}">Показать другую карточку</a>
+    {% else %}
+        <p>Карточек пока нет. Сначала добавь хотя бы одну карточку.</p>
+    {% endif %}
+{% endblock %}

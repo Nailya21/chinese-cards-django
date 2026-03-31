@@ -55,3 +55,9 @@ def card_edit(request, card_id):
         "card": card,
     }
     return render(request, "cards/card_form.html", context)
+
+
+def study(request):
+    card = Card.objects.order_by("?").first()
+    context = {"card": card}
+    return render(request, "cards/study.html", context)
