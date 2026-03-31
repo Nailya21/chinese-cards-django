@@ -1,7 +1,11 @@
+from urllib.parse import urlencode
+
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from .forms import BulkCardFormSet, CardForm
 from .models import Card
+
 
 def home(request):
     return render(request, "cards/home.html")
@@ -70,11 +74,6 @@ def card_edit(request, card_id):
     return render(request, "cards/card_form.html", context)
 
 
-def study(request):
-    card = Card.objects.order_by("?").first()
-    context = {"card": card}
-    return render(request, "cards/study.html", context)
-
 def bulk_card_create(request):
     if request.method == "POST":
         formset = BulkCardFormSet(request.POST, queryset=Card.objects.none())
@@ -88,3 +87,54 @@ def bulk_card_create(request):
         "formset": formset,
     }
     return render(request, "cards/bulk_card_form.html", context)
+
+
+def study(request):
+    selected_topic = request.GET.get("topic", "").strip()
+
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        selected_topic = request.POST.get("topic", "").strip()
+
+        if action == "mark_right":
+            request.session["study_total"] = request.session.get("study_total", 0) + 1
+            request.session["study_correct"] = request.session.get("study_correct", 0) + 1
+        elif action == "mark_wrong":
+            request.session["study_total"] = request.session.get("study_total", 0) + 1
+        elif action == "reset_stats":
+            request.session["study_total"] = 0
+            request.session["study_correct"] = 0
+
+        query_string = urlencode({"topic": selected_topic}) if selected_topic else ""
+        url = reverse("cards:study")
+        if query_string:
+            url = f"{url}?{query_string}"
+        return redirect(url)
+
+    cards = Card.objects.all()
+
+    if selected_topic:
+        cards = cards.filter(topic=selected_topic)
+
+    card = cards.order_by("?").first()
+
+    topics = (
+        Card.objects.exclude(topic="")
+        .values_list("topic", flat=True)
+        .distinct()
+        .order_by("topic")
+    )
+
+    total = request.session.get("study_total", 0)
+    correct = request.session.get("study_correct", 0)
+    percent = round((correct / total) * 100, 1) if total else 0
+
+    context = {
+        "card": card,
+        "topics": topics,
+        "selected_topic": selected_topic,
+        "total": total,
+        "correct": correct,
+        "percent": percent,
+    }
+    return render(request, "cards/study.html", context)

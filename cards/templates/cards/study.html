@@ -5,22 +5,76 @@
 {% block content %}
     <h1>Тренировка</h1>
 
+    <p>
+        Выбери тему, посмотри на слово и отметь, правильно ли ты его вспомнил.
+    </p>
+
+    <form method="get" style="margin-bottom: 24px;">
+        <div style="margin-bottom: 12px;">
+            <label for="topic"><strong>Тема:</strong></label>
+            <select name="topic" id="topic">
+                <option value="">Все темы</option>
+                {% for topic in topics %}
+                    <option value="{{ topic }}" {% if topic == selected_topic %}selected{% endif %}>
+                        {{ topic }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn">Применить</button>
+        <a class="btn" href="{% url 'cards:study' %}">Сбросить фильтр</a>
+    </form>
+
+    <div class="card-item" style="margin-bottom: 24px;">
+        <h2>Статистика</h2>
+        <p><strong>Отвечено:</strong> {{ total }}</p>
+        <p><strong>Правильно:</strong> {{ correct }}</p>
+        <p><strong>Процент правильных ответов:</strong> {{ percent }}%</p>
+
+        <form method="post" style="margin-top: 12px;">
+            {% csrf_token %}
+            <input type="hidden" name="topic" value="{{ selected_topic }}">
+            <button type="submit" name="action" value="reset_stats" class="btn">
+                Сбросить статистику
+            </button>
+        </form>
+    </div>
+
     {% if card %}
         <div class="card-item">
             <h2>{{ card.chinese }}</h2>
             <p><strong>Пиньинь:</strong> {{ card.pinyin }}</p>
-            <p><strong>Подумай над переводом, а потом посмотри ответ ниже.</strong></p>
-
-            <hr style="margin: 20px 0;">
-
             <p><strong>Перевод:</strong> {{ card.translation }}</p>
             <p><strong>Пример:</strong> {{ card.example|default:"—" }}</p>
             <p><strong>Тема:</strong> {{ card.topic|default:"—" }}</p>
             <p><strong>HSK:</strong> {{ card.hsk_level }}</p>
         </div>
 
-        <a class="btn" href="{% url 'cards:study' %}">Показать другую карточку</a>
+        <form method="post" style="margin-top: 20px;">
+            {% csrf_token %}
+            <input type="hidden" name="topic" value="{{ selected_topic }}">
+
+            <button type="submit" name="action" value="mark_right" class="btn">
+                Ответил правильно
+            </button>
+            <button type="submit" name="action" value="mark_wrong" class="btn">
+                Ответил неправильно
+            </button>
+        </form>
+
+        <div class="actions" style="margin-top: 20px;">
+            {% if selected_topic %}
+                <a class="btn" href="{% url 'cards:study' %}?topic={{ selected_topic|urlencode }}">
+                    Другая карточка
+                </a>
+            {% else %}
+                <a class="btn" href="{% url 'cards:study' %}">
+                    Другая карточка
+                </a>
+            {% endif %}
+        </div>
     {% else %}
-        <p>Карточек пока нет. Сначала добавь хотя бы одну карточку.</p>
+        <p>Для выбранной темы карточек пока нет.</p>
     {% endif %}
 {% endblock %}
