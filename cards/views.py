@@ -1,7 +1,7 @@
-from urllib.parse import urlencode
+import random
+import time
 
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 
 from .forms import BulkCardFormSet, CardForm
 from .models import Card
@@ -89,34 +89,78 @@ def bulk_card_create(request):
     return render(request, "cards/bulk_card_form.html", context)
 
 
-def study(request):
-    selected_topic = request.GET.get("topic", "").strip()
+def _build_study_queue(topic="", card_ids=None):
+    if card_ids is None:
+        queryset = Card.objects.all()
+        if topic:
+            queryset = queryset.filter(topic=topic)
+        card_ids = list(queryset.values_list("id", flat=True))
 
+    queue = list(card_ids)
+    random.shuffle(queue)
+    return queue
+
+
+def _start_study_session(request, topic="", card_ids=None):
+    queue = _build_study_queue(topic=topic, card_ids=card_ids)
+
+    request.session["study_topic"] = topic
+    request.session["study_queue"] = queue
+    request.session["study_wrong_ids"] = []
+    request.session["study_answered"] = 0
+    request.session["study_correct"] = 0
+    request.session["study_started"] = True
+    request.session["study_started_at"] = time.time()
+    request.session["study_finished_at"] = None
+
+
+def study(request):
     if request.method == "POST":
         action = request.POST.get("action", "")
-        selected_topic = request.POST.get("topic", "").strip()
+        topic = request.POST.get("topic", "").strip()
 
-        if action == "mark_right":
-            request.session["study_total"] = request.session.get("study_total", 0) + 1
-            request.session["study_correct"] = request.session.get("study_correct", 0) + 1
-        elif action == "mark_wrong":
-            request.session["study_total"] = request.session.get("study_total", 0) + 1
-        elif action == "reset_stats":
-            request.session["study_total"] = 0
-            request.session["study_correct"] = 0
+        if action == "start_topic":
+            _start_study_session(request, topic=topic)
+            return redirect("cards:study")
 
-        query_string = urlencode({"topic": selected_topic}) if selected_topic else ""
-        url = reverse("cards:study")
-        if query_string:
-            url = f"{url}?{query_string}"
-        return redirect(url)
+        if action == "restart_topic":
+            saved_topic = request.session.get("study_topic", "")
+            _start_study_session(request, topic=saved_topic)
+            return redirect("cards:study")
 
-    cards = Card.objects.all()
+        if action == "retry_wrong":
+            saved_topic = request.session.get("study_topic", "")
+            wrong_ids = request.session.get("study_wrong_ids", [])
+            _start_study_session(request, topic=saved_topic, card_ids=wrong_ids)
+            return redirect("cards:study")
 
-    if selected_topic:
-        cards = cards.filter(topic=selected_topic)
+        if action in {"mark_right", "mark_wrong"}:
+            queue = request.session.get("study_queue", [])
 
-    card = cards.order_by("?").first()
+            if queue:
+                current_card_id = int(request.POST.get("card_id", "0"))
+                expected_card_id = queue[0]
+
+                if current_card_id == expected_card_id:
+                    queue.pop(0)
+                elif current_card_id in queue:
+                    queue.remove(current_card_id)
+
+                request.session["study_queue"] = queue
+                request.session["study_answered"] = request.session.get("study_answered", 0) + 1
+
+                if action == "mark_right":
+                    request.session["study_correct"] = request.session.get("study_correct", 0) + 1
+                else:
+                    wrong_ids = request.session.get("study_wrong_ids", [])
+                    if current_card_id not in wrong_ids:
+                        wrong_ids.append(current_card_id)
+                    request.session["study_wrong_ids"] = wrong_ids
+
+                if not queue:
+                    request.session["study_finished_at"] = time.time()
+
+            return redirect("cards:study")
 
     topics = (
         Card.objects.exclude(topic="")
@@ -125,16 +169,50 @@ def study(request):
         .order_by("topic")
     )
 
-    total = request.session.get("study_total", 0)
+    selected_topic = request.session.get("study_topic", "")
+    queue = request.session.get("study_queue", [])
+    answered = request.session.get("study_answered", 0)
     correct = request.session.get("study_correct", 0)
-    percent = round((correct / total) * 100, 1) if total else 0
+    wrong_ids = request.session.get("study_wrong_ids", [])
+    started = request.session.get("study_started", False)
+
+    current_card = None
+    if queue:
+        current_card = Card.objects.filter(id=queue[0]).first()
+
+    finished = started and answered > 0 and not queue
+    no_cards_in_topic = started and answered == 0 and not queue
+
+    percent = round((correct / answered) * 100, 1) if answered else 0
+    wrong_count = answered - correct
+    remaining = len(queue)
+
+    started_at = request.session.get("study_started_at")
+    finished_at = request.session.get("study_finished_at")
+
+    if started_at:
+        end_time = finished_at if finished_at else time.time()
+        duration_seconds = int(end_time - started_at)
+    else:
+        duration_seconds = 0
+
+    minutes = duration_seconds // 60
+    seconds = duration_seconds % 60
+    duration_text = f"{minutes}:{seconds:02d}"
 
     context = {
-        "card": card,
         "topics": topics,
         "selected_topic": selected_topic,
-        "total": total,
+        "started": started,
+        "current_card": current_card,
+        "finished": finished,
+        "no_cards_in_topic": no_cards_in_topic,
+        "answered": answered,
         "correct": correct,
+        "wrong_count": wrong_count,
         "percent": percent,
+        "remaining": remaining,
+        "duration_text": duration_text,
+        "can_retry_wrong": len(wrong_ids) > 0,
     }
     return render(request, "cards/study.html", context)
