@@ -1,5 +1,6 @@
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 
+from .forms import CardForm
 from .models import Card
 
 
@@ -17,3 +18,40 @@ def card_detail(request, card_id):
     card = get_object_or_404(Card, id=card_id)
     context = {"card": card}
     return render(request, "cards/card_detail.html", context)
+
+
+def card_create(request):
+    if request.method == "POST":
+        form = CardForm(request.POST)
+        if form.is_valid():
+            card = form.save()
+            return redirect("cards:card_detail", card_id=card.id)
+    else:
+        form = CardForm()
+
+    context = {
+        "form": form,
+        "page_title": "Добавить карточку",
+        "button_text": "Сохранить",
+    }
+    return render(request, "cards/card_form.html", context)
+
+
+def card_edit(request, card_id):
+    card = get_object_or_404(Card, id=card_id)
+
+    if request.method == "POST":
+        form = CardForm(request.POST, instance=card)
+        if form.is_valid():
+            card = form.save()
+            return redirect("cards:card_detail", card_id=card.id)
+    else:
+        form = CardForm(instance=card)
+
+    context = {
+        "form": form,
+        "page_title": "Редактировать карточку",
+        "button_text": "Обновить",
+        "card": card,
+    }
+    return render(request, "cards/card_form.html", context)

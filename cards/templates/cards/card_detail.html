@@ -12,5 +12,8 @@
     <p><strong>Уровень HSK:</strong> {{ card.hsk_level }}</p>
     <p><strong>Дата создания:</strong> {{ card.created_at }}</p>
 
-    <a class="btn" href="{% url 'cards:card_list' %}">Назад к списку</a>
+    <div class="actions">
+        <a class="btn" href="{% url 'cards:card_list' %}">Назад к списку</a>
+        <a class="btn" href="{% url 'cards:card_edit' card.id %}">Редактировать</a>
+    </div>
 {% endblock %}
