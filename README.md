@@ -40,4 +40,4 @@
 
 1. Клонировать репозиторий:
    ```bash
-   git clone <ссылка_на_репозиторий>
+   git clone https://github.com/Nailya21/chinese-cards-django.git
