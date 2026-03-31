@@ -1,8 +1,7 @@
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .forms import CardForm
+from .forms import BulkCardFormSet, CardForm
 from .models import Card
-
 
 def home(request):
     return render(request, "cards/home.html")
@@ -75,3 +74,17 @@ def study(request):
     card = Card.objects.order_by("?").first()
     context = {"card": card}
     return render(request, "cards/study.html", context)
+
+def bulk_card_create(request):
+    if request.method == "POST":
+        formset = BulkCardFormSet(request.POST, queryset=Card.objects.none())
+        if formset.is_valid():
+            formset.save()
+            return redirect("cards:card_list")
+    else:
+        formset = BulkCardFormSet(queryset=Card.objects.none())
+
+    context = {
+        "formset": formset,
+    }
+    return render(request, "cards/bulk_card_form.html", context)

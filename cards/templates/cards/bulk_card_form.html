@@ -1,0 +1,89 @@
+{% extends "cards/base.html" %}
+
+{% block title %}Массовое добавление карточек{% endblock %}
+
+{% block content %}
+    <h1>Массовое добавление карточек</h1>
+
+    <p>
+        Здесь можно добавить сразу несколько карточек в виде таблицы.
+        Пустые строки будут проигнорированы.
+    </p>
+
+    <div class="actions" style="margin-bottom: 20px;">
+        <a class="btn" href="{% url 'cards:card_create' %}">Обычное добавление</a>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ formset.management_form }}
+
+        {% if formset.non_form_errors %}
+            <div style="color: darkred; margin-bottom: 20px;">
+                {{ formset.non_form_errors }}
+            </div>
+        {% endif %}
+
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f0f0f0;">
+                        <th style="padding: 10px; border: 1px solid #ddd;">Китайское слово</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Пиньинь</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Перевод</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Пример</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Тема</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">HSK</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for form in formset %}
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;">
+                                {{ form.id }}
+                                {{ form.chinese }}
+                                {% if form.chinese.errors %}
+                                    <div style="color: darkred;">{{ form.chinese.errors }}</div>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">
+                                {{ form.pinyin }}
+                                {% if form.pinyin.errors %}
+                                    <div style="color: darkred;">{{ form.pinyin.errors }}</div>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">
+                                {{ form.translation }}
+                                {% if form.translation.errors %}
+                                    <div style="color: darkred;">{{ form.translation.errors }}</div>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">
+                                {{ form.example }}
+                                {% if form.example.errors %}
+                                    <div style="color: darkred;">{{ form.example.errors }}</div>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">
+                                {{ form.topic }}
+                                {% if form.topic.errors %}
+                                    <div style="color: darkred;">{{ form.topic.errors }}</div>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">
+                                {{ form.hsk_level }}
+                                {% if form.hsk_level.errors %}
+                                    <div style="color: darkred;">{{ form.hsk_level.errors }}</div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="actions" style="margin-top: 20px;">
+            <button type="submit" class="btn">Сохранить карточки</button>
+        </div>
+    </form>
+{% endblock %}
