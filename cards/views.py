@@ -89,6 +89,29 @@ def bulk_card_create(request):
     return render(request, "cards/bulk_card_form.html", context)
 
 
+def _extract_prompt_settings(request):
+    show_chinese = bool(request.POST.get("show_chinese_prompt"))
+    show_pinyin = bool(request.POST.get("show_pinyin_prompt"))
+    show_translation = bool(request.POST.get("show_translation_prompt"))
+
+    if not (show_chinese or show_pinyin or show_translation):
+        show_chinese = True
+
+    return {
+        "show_chinese": show_chinese,
+        "show_pinyin": show_pinyin,
+        "show_translation": show_translation,
+    }
+
+
+def _get_prompt_settings_from_session(request):
+    return {
+        "show_chinese": request.session.get("study_prompt_show_chinese", True),
+        "show_pinyin": request.session.get("study_prompt_show_pinyin", False),
+        "show_translation": request.session.get("study_prompt_show_translation", False),
+    }
+
+
 def _build_study_queue(topic="", card_ids=None):
     if card_ids is None:
         queryset = Card.objects.all()
@@ -101,7 +124,10 @@ def _build_study_queue(topic="", card_ids=None):
     return queue
 
 
-def _start_study_session(request, topic="", card_ids=None):
+def _start_study_session(request, topic="", card_ids=None, prompt_settings=None):
+    if prompt_settings is None:
+        prompt_settings = _get_prompt_settings_from_session(request)
+
     queue = _build_study_queue(topic=topic, card_ids=card_ids)
 
     request.session["study_topic"] = topic
@@ -109,29 +135,49 @@ def _start_study_session(request, topic="", card_ids=None):
     request.session["study_wrong_ids"] = []
     request.session["study_answered"] = 0
     request.session["study_correct"] = 0
+    request.session["study_total_cards"] = len(queue)
     request.session["study_started"] = True
-    request.session["study_started_at"] = time.time()
+    request.session["study_started_at"] = int(time.time())
     request.session["study_finished_at"] = None
+    request.session["study_prompt_show_chinese"] = prompt_settings["show_chinese"]
+    request.session["study_prompt_show_pinyin"] = prompt_settings["show_pinyin"]
+    request.session["study_prompt_show_translation"] = prompt_settings["show_translation"]
 
 
 def study(request):
     if request.method == "POST":
         action = request.POST.get("action", "")
-        topic = request.POST.get("topic", "").strip()
 
         if action == "start_topic":
-            _start_study_session(request, topic=topic)
+            topic = request.POST.get("topic", "").strip()
+            prompt_settings = _extract_prompt_settings(request)
+            _start_study_session(
+                request,
+                topic=topic,
+                prompt_settings=prompt_settings,
+            )
             return redirect("cards:study")
 
         if action == "restart_topic":
             saved_topic = request.session.get("study_topic", "")
-            _start_study_session(request, topic=saved_topic)
+            prompt_settings = _get_prompt_settings_from_session(request)
+            _start_study_session(
+                request,
+                topic=saved_topic,
+                prompt_settings=prompt_settings,
+            )
             return redirect("cards:study")
 
         if action == "retry_wrong":
             saved_topic = request.session.get("study_topic", "")
             wrong_ids = request.session.get("study_wrong_ids", [])
-            _start_study_session(request, topic=saved_topic, card_ids=wrong_ids)
+            prompt_settings = _get_prompt_settings_from_session(request)
+            _start_study_session(
+                request,
+                topic=saved_topic,
+                card_ids=wrong_ids,
+                prompt_settings=prompt_settings,
+            )
             return redirect("cards:study")
 
         if action in {"mark_right", "mark_wrong"}:
@@ -139,18 +185,22 @@ def study(request):
 
             if queue:
                 current_card_id = int(request.POST.get("card_id", "0"))
-                expected_card_id = queue[0]
+                first_card_id = queue[0]
 
-                if current_card_id == expected_card_id:
+                if current_card_id == first_card_id:
                     queue.pop(0)
                 elif current_card_id in queue:
                     queue.remove(current_card_id)
 
                 request.session["study_queue"] = queue
-                request.session["study_answered"] = request.session.get("study_answered", 0) + 1
+                request.session["study_answered"] = (
+                    request.session.get("study_answered", 0) + 1
+                )
 
                 if action == "mark_right":
-                    request.session["study_correct"] = request.session.get("study_correct", 0) + 1
+                    request.session["study_correct"] = (
+                        request.session.get("study_correct", 0) + 1
+                    )
                 else:
                     wrong_ids = request.session.get("study_wrong_ids", [])
                     if current_card_id not in wrong_ids:
@@ -158,7 +208,7 @@ def study(request):
                     request.session["study_wrong_ids"] = wrong_ids
 
                 if not queue:
-                    request.session["study_finished_at"] = time.time()
+                    request.session["study_finished_at"] = int(time.time())
 
             return redirect("cards:study")
 
@@ -170,29 +220,34 @@ def study(request):
     )
 
     selected_topic = request.session.get("study_topic", "")
+    prompt_settings = _get_prompt_settings_from_session(request)
+
     queue = request.session.get("study_queue", [])
     answered = request.session.get("study_answered", 0)
     correct = request.session.get("study_correct", 0)
     wrong_ids = request.session.get("study_wrong_ids", [])
+    total_cards = request.session.get("study_total_cards", 0)
     started = request.session.get("study_started", False)
 
     current_card = None
     if queue:
         current_card = Card.objects.filter(id=queue[0]).first()
 
-    finished = started and answered > 0 and not queue
-    no_cards_in_topic = started and answered == 0 and not queue
+    finished = started and total_cards > 0 and answered == total_cards and not queue
+    no_cards_in_topic = started and total_cards == 0 and not queue
 
-    percent = round((correct / answered) * 100, 1) if answered else 0
     wrong_count = answered - correct
+    percent = round((correct / answered) * 100, 1) if answered else 0
     remaining = len(queue)
+    progress_percent = round((answered / total_cards) * 100, 1) if total_cards else 0
+    current_number = answered + 1 if current_card else total_cards
 
     started_at = request.session.get("study_started_at")
     finished_at = request.session.get("study_finished_at")
 
     if started_at:
-        end_time = finished_at if finished_at else time.time()
-        duration_seconds = int(end_time - started_at)
+        end_time = finished_at if finished_at else int(time.time())
+        duration_seconds = max(0, int(end_time - started_at))
     else:
         duration_seconds = 0
 
@@ -212,7 +267,15 @@ def study(request):
         "wrong_count": wrong_count,
         "percent": percent,
         "remaining": remaining,
+        "total_cards": total_cards,
+        "progress_percent": progress_percent,
+        "current_number": current_number,
         "duration_text": duration_text,
+        "started_at_ts": started_at or "",
+        "finished_at_ts": finished_at or "",
         "can_retry_wrong": len(wrong_ids) > 0,
+        "prompt_show_chinese": prompt_settings["show_chinese"],
+        "prompt_show_pinyin": prompt_settings["show_pinyin"],
+        "prompt_show_translation": prompt_settings["show_translation"],
     }
     return render(request, "cards/study.html", context)

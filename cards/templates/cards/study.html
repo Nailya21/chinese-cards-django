@@ -5,48 +5,118 @@
 {% block content %}
     <h1>Тренировка</h1>
 
-    <p>
-        Выбери тему и начни тренировку. Карточки не повторяются, пока не закончится вся тема.
-    </p>
+    <div class="card-item" style="margin-bottom: 24px;">
+        <h2>Настройки тренировки</h2>
+        <p class="muted">
+            Здесь можно выбрать тему и указать, что показывать до ответа.
+            Остальные поля откроются по кнопке «Показать ответ».
+        </p>
 
-    <form method="post" style="margin-bottom: 24px;">
-        {% csrf_token %}
-        <div style="margin-bottom: 12px;">
-            <label for="topic"><strong>Тема:</strong></label>
-            <select name="topic" id="topic">
-                <option value="">Все темы</option>
-                {% for topic in topics %}
-                    <option value="{{ topic }}" {% if topic == selected_topic %}selected{% endif %}>
-                        {{ topic }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
+        <form method="post">
+            {% csrf_token %}
 
-        <button type="submit" name="action" value="start_topic" class="btn">
-            Начать тренировку
-        </button>
-    </form>
+            <div style="margin-bottom: 16px;">
+                <label for="topic"><strong>Тема:</strong></label>
+                <select name="topic" id="topic">
+                    <option value="">Все темы</option>
+                    {% for topic in topics %}
+                        <option value="{{ topic }}" {% if topic == selected_topic %}selected{% endif %}>
+                            {{ topic }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <p><strong>Что показывать до ответа:</strong></p>
+
+                <label style="display: block; margin-bottom: 6px;">
+                    <input
+                        type="checkbox"
+                        name="show_chinese_prompt"
+                        {% if prompt_show_chinese %}checked{% endif %}
+                    >
+                    Иероглиф
+                </label>
+
+                <label style="display: block; margin-bottom: 6px;">
+                    <input
+                        type="checkbox"
+                        name="show_pinyin_prompt"
+                        {% if prompt_show_pinyin %}checked{% endif %}
+                    >
+                    Пиньинь
+                </label>
+
+                <label style="display: block; margin-bottom: 6px;">
+                    <input
+                        type="checkbox"
+                        name="show_translation_prompt"
+                        {% if prompt_show_translation %}checked{% endif %}
+                    >
+                    Перевод
+                </label>
+            </div>
+
+            <button type="submit" name="action" value="start_topic" class="btn">
+                Начать тренировку
+            </button>
+        </form>
+    </div>
 
     {% if started and current_card %}
         <div class="card-item" style="margin-bottom: 24px;">
             <h2>Текущая статистика</h2>
             <p><strong>Тема:</strong> {{ selected_topic|default:"Все темы" }}</p>
-            <p><strong>Отвечено:</strong> {{ answered }}</p>
+            <p><strong>Завершено:</strong> {{ answered }} из {{ total_cards }}</p>
             <p><strong>Правильно:</strong> {{ correct }}</p>
             <p><strong>Неправильно:</strong> {{ wrong_count }}</p>
             <p><strong>Процент правильных ответов:</strong> {{ percent }}%</p>
             <p><strong>Осталось карточек:</strong> {{ remaining }}</p>
-            <p><strong>Время:</strong> {{ duration_text }}</p>
+            <p>
+                <strong>Время:</strong>
+                <span
+                    id="study-timer"
+                    data-started-at="{{ started_at_ts }}"
+                    data-finished-at="{{ finished_at_ts }}"
+                >
+                    {{ duration_text }}
+                </span>
+            </p>
+
+            <div style="margin-top: 18px;">
+                <p><strong>Прогресс:</strong> {{ progress_percent }}%</p>
+                <div style="width: 100%; height: 18px; background: #e6e6e6; border-radius: 999px; overflow: hidden;">
+                    <div
+                        style="height: 100%; width: {{ progress_percent }}%; background: #2f6f8f;"
+                    ></div>
+                </div>
+            </div>
         </div>
 
         <div class="card-item">
-            <h2>{{ current_card.chinese }}</h2>
-            <p><strong>Пиньинь:</strong> {{ current_card.pinyin }}</p>
+            <p class="muted">Карточка {{ current_number }} из {{ total_cards }}</p>
+
+            {% if prompt_show_chinese %}
+                <p><strong>Иероглиф:</strong> {{ current_card.chinese }}</p>
+            {% endif %}
+
+            {% if prompt_show_pinyin %}
+                <p><strong>Пиньинь:</strong> {{ current_card.pinyin }}</p>
+            {% endif %}
+
+            {% if prompt_show_translation %}
+                <p><strong>Перевод:</strong> {{ current_card.translation }}</p>
+            {% endif %}
 
             <details style="margin-top: 16px;">
-                <summary style="cursor: pointer;"><strong>Показать ответ</strong></summary>
+                <summary style="cursor: pointer;">
+                    <strong>Показать ответ</strong>
+                </summary>
+
                 <div style="margin-top: 12px;">
+                    <p><strong>Иероглиф:</strong> {{ current_card.chinese }}</p>
+                    <p><strong>Пиньинь:</strong> {{ current_card.pinyin }}</p>
                     <p><strong>Перевод:</strong> {{ current_card.translation }}</p>
                     <p><strong>Пример:</strong> {{ current_card.example|default:"—" }}</p>
                     <p><strong>Тема:</strong> {{ current_card.topic|default:"—" }}</p>
@@ -76,6 +146,15 @@
             <p><strong>Неправильно:</strong> {{ wrong_count }}</p>
             <p><strong>Процент правильных ответов:</strong> {{ percent }}%</p>
             <p><strong>Время прохождения:</strong> {{ duration_text }}</p>
+
+            <div style="margin-top: 18px;">
+                <p><strong>Прогресс:</strong> 100%</p>
+                <div style="width: 100%; height: 18px; background: #e6e6e6; border-radius: 999px; overflow: hidden;">
+                    <div
+                        style="height: 100%; width: 100%; background: #2f6f8f;"
+                    ></div>
+                </div>
+            </div>
         </div>
 
         <form method="post" style="margin-top: 20px;">
@@ -100,7 +179,43 @@
 
     {% else %}
         <div class="card-item">
-            <p>Выбери тему и нажми «Начать тренировку».</p>
+            <p>Выбери тему, настрой содержимое карточки и нажми «Начать тренировку».</p>
         </div>
     {% endif %}
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const timer = document.getElementById("study-timer");
+
+            if (!timer) {
+                return;
+            }
+
+            const startedAt = Number(timer.dataset.startedAt);
+            const finishedAtRaw = timer.dataset.finishedAt;
+            const finishedAt = finishedAtRaw ? Number(finishedAtRaw) : null;
+
+            if (!startedAt) {
+                return;
+            }
+
+            function formatDuration(totalSeconds) {
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                return `${minutes}:${String(seconds).padStart(2, "0")}`;
+            }
+
+            function updateTimer() {
+                const endTime = finishedAt || Math.floor(Date.now() / 1000);
+                const duration = Math.max(0, endTime - startedAt);
+                timer.textContent = formatDuration(duration);
+            }
+
+            updateTimer();
+
+            if (!finishedAt) {
+                setInterval(updateTimer, 1000);
+            }
+        });
+    </script>
 {% endblock %}
