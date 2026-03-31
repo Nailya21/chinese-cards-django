@@ -5,6 +5,35 @@
 {% block content %}
     <h1>Список карточек</h1>
 
+    <form method="get" style="margin-bottom: 24px;">
+        <div style="margin-bottom: 12px;">
+            <label for="topic"><strong>Фильтр по теме:</strong></label>
+            <input
+                type="text"
+                name="topic"
+                id="topic"
+                value="{{ topic }}"
+                placeholder="Например, приветствия"
+            >
+        </div>
+
+        <div style="margin-bottom: 12px;">
+            <label for="hsk_level"><strong>Фильтр по HSK:</strong></label>
+            <input
+                type="number"
+                name="hsk_level"
+                id="hsk_level"
+                value="{{ hsk_level }}"
+                min="1"
+                max="6"
+                placeholder="От 1 до 6"
+            >
+        </div>
+
+        <button type="submit" class="btn">Применить фильтр</button>
+        <a class="btn" href="{% url 'cards:card_list' %}">Сбросить</a>
+    </form>
+
     {% if cards %}
         {% for card in cards %}
             <div class="card-item">
@@ -18,6 +47,6 @@
             </div>
         {% endfor %}
     {% else %}
-        <p>Карточек пока нет.</p>
+        <p>По заданным фильтрам карточек не найдено.</p>
     {% endif %}
 {% endblock %}

@@ -10,7 +10,21 @@ def home(request):
 
 def card_list(request):
     cards = Card.objects.all().order_by("-created_at")
-    context = {"cards": cards}
+
+    topic = request.GET.get("topic", "").strip()
+    hsk_level = request.GET.get("hsk_level", "").strip()
+
+    if topic:
+        cards = cards.filter(topic__icontains=topic)
+
+    if hsk_level:
+        cards = cards.filter(hsk_level=hsk_level)
+
+    context = {
+        "cards": cards,
+        "topic": topic,
+        "hsk_level": hsk_level,
+    }
     return render(request, "cards/card_list.html", context)
 
 
