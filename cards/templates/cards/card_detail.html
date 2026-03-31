@@ -1,0 +1,16 @@
+{% extends "cards/base.html" %}
+
+{% block title %}Карточка{% endblock %}
+
+{% block content %}
+    <h1>{{ card.chinese }}</h1>
+
+    <p><strong>Пиньинь:</strong> {{ card.pinyin }}</p>
+    <p><strong>Перевод:</strong> {{ card.translation }}</p>
+    <p><strong>Пример:</strong> {{ card.example|default:"—" }}</p>
+    <p><strong>Тема:</strong> {{ card.topic|default:"—" }}</p>
+    <p><strong>Уровень HSK:</strong> {{ card.hsk_level }}</p>
+    <p><strong>Дата создания:</strong> {{ card.created_at }}</p>
+
+    <a class="btn" href="{% url 'cards:card_list' %}">Назад к списку</a>
+{% endblock %}

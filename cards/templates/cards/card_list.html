@@ -1,0 +1,23 @@
+{% extends "cards/base.html" %}
+
+{% block title %}Все карточки{% endblock %}
+
+{% block content %}
+    <h1>Список карточек</h1>
+
+    {% if cards %}
+        {% for card in cards %}
+            <div class="card-item">
+                <h2>{{ card.chinese }}</h2>
+                <p><strong>Пиньинь:</strong> {{ card.pinyin }}</p>
+                <p><strong>Перевод:</strong> {{ card.translation }}</p>
+                <p class="muted">
+                    Тема: {{ card.topic|default:"—" }} | HSK: {{ card.hsk_level }}
+                </p>
+                <a class="btn" href="{% url 'cards:card_detail' card.id %}">Открыть карточку</a>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>Карточек пока нет.</p>
+    {% endif %}
+{% endblock %}
