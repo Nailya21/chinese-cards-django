@@ -112,11 +112,16 @@ def _get_prompt_settings_from_session(request):
     }
 
 
-def _build_study_queue(topic="", card_ids=None):
+def _build_study_queue(topic="", hsk_level="", card_ids=None):
     if card_ids is None:
         queryset = Card.objects.all()
+
         if topic:
             queryset = queryset.filter(topic=topic)
+
+        if hsk_level:
+            queryset = queryset.filter(hsk_level=hsk_level)
+
         card_ids = list(queryset.values_list("id", flat=True))
 
     queue = list(card_ids)
@@ -124,13 +129,14 @@ def _build_study_queue(topic="", card_ids=None):
     return queue
 
 
-def _start_study_session(request, topic="", card_ids=None, prompt_settings=None):
+def _start_study_session(request, topic="", hsk_level="", card_ids=None, prompt_settings=None):
     if prompt_settings is None:
         prompt_settings = _get_prompt_settings_from_session(request)
 
-    queue = _build_study_queue(topic=topic, card_ids=card_ids)
+    queue = _build_study_queue(topic=topic, hsk_level=hsk_level, card_ids=card_ids)
 
     request.session["study_topic"] = topic
+    request.session["study_hsk_level"] = hsk_level
     request.session["study_queue"] = queue
     request.session["study_wrong_ids"] = []
     request.session["study_answered"] = 0
@@ -150,31 +156,37 @@ def study(request):
 
         if action == "start_topic":
             topic = request.POST.get("topic", "").strip()
+            hsk_level = request.POST.get("hsk_level", "").strip()
             prompt_settings = _extract_prompt_settings(request)
             _start_study_session(
                 request,
                 topic=topic,
+                hsk_level=hsk_level,
                 prompt_settings=prompt_settings,
             )
             return redirect("cards:study")
 
         if action == "restart_topic":
             saved_topic = request.session.get("study_topic", "")
+            saved_hsk_level = request.session.get("study_hsk_level", "")
             prompt_settings = _get_prompt_settings_from_session(request)
             _start_study_session(
                 request,
                 topic=saved_topic,
+                hsk_level=saved_hsk_level,
                 prompt_settings=prompt_settings,
             )
             return redirect("cards:study")
 
         if action == "retry_wrong":
             saved_topic = request.session.get("study_topic", "")
+            saved_hsk_level = request.session.get("study_hsk_level", "")
             wrong_ids = request.session.get("study_wrong_ids", [])
             prompt_settings = _get_prompt_settings_from_session(request)
             _start_study_session(
                 request,
                 topic=saved_topic,
+                hsk_level=saved_hsk_level,
                 card_ids=wrong_ids,
                 prompt_settings=prompt_settings,
             )
@@ -219,7 +231,14 @@ def study(request):
         .order_by("topic")
     )
 
+    hsk_levels = (
+        Card.objects.values_list("hsk_level", flat=True)
+        .distinct()
+        .order_by("hsk_level")
+    )
+
     selected_topic = request.session.get("study_topic", "")
+    selected_hsk_level = request.session.get("study_hsk_level", "")
     prompt_settings = _get_prompt_settings_from_session(request)
 
     queue = request.session.get("study_queue", [])
@@ -257,7 +276,9 @@ def study(request):
 
     context = {
         "topics": topics,
+        "hsk_levels": hsk_levels,
         "selected_topic": selected_topic,
+        "selected_hsk_level": selected_hsk_level,
         "started": started,
         "current_card": current_card,
         "finished": finished,

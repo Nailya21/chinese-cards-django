@@ -28,6 +28,18 @@
             </div>
 
             <div style="margin-bottom: 16px;">
+                <label for="hsk_level"><strong>HSK:</strong></label>
+                <select name="hsk_level" id="hsk_level">
+                    <option value="">Все уровни</option>
+                    {% for level in hsk_levels %}
+                        <option value="{{ level }}" {% if level|stringformat:"s" == selected_hsk_level %}selected{% endif %}>
+                            HSK {{ level }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="margin-bottom: 16px;">
                 <p><strong>Что показывать до ответа:</strong></p>
 
                 <label style="display: block; margin-bottom: 6px;">
@@ -68,6 +80,7 @@
         <div class="card-item" style="margin-bottom: 24px;">
             <h2>Текущая статистика</h2>
             <p><strong>Тема:</strong> {{ selected_topic|default:"Все темы" }}</p>
+            <p><strong>HSK:</strong> {{ selected_hsk_level|default:"Все уровни" }}</p>
             <p><strong>Завершено:</strong> {{ answered }} из {{ total_cards }}</p>
             <p><strong>Правильно:</strong> {{ correct }}</p>
             <p><strong>Неправильно:</strong> {{ wrong_count }}</p>
@@ -141,6 +154,7 @@
         <div class="card-item">
             <h2>Ты прошёл тему</h2>
             <p><strong>Тема:</strong> {{ selected_topic|default:"Все темы" }}</p>
+            <p><strong>HSK:</strong> {{ selected_hsk_level|default:"Все уровни" }}</p>
             <p><strong>Всего отвечено:</strong> {{ answered }}</p>
             <p><strong>Правильно:</strong> {{ correct }}</p>
             <p><strong>Неправильно:</strong> {{ wrong_count }}</p>
