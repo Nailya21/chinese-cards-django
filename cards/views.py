@@ -154,6 +154,19 @@ def study(request):
     if request.method == "POST":
         action = request.POST.get("action", "")
 
+        if action == "reset_study":
+            request.session["study_topic"] = ""
+            request.session["study_hsk_level"] = ""
+            request.session["study_queue"] = []
+            request.session["study_wrong_ids"] = []
+            request.session["study_answered"] = 0
+            request.session["study_correct"] = 0
+            request.session["study_total_cards"] = 0
+            request.session["study_started"] = False
+            request.session["study_started_at"] = None
+            request.session["study_finished_at"] = None
+            return redirect("cards:study")
+
         if action == "start_topic":
             topic = request.POST.get("topic", "").strip()
             hsk_level = request.POST.get("hsk_level", "").strip()
